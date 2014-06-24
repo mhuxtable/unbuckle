@@ -21,7 +21,7 @@ and to benefit from the availability of core system data structures. In particul
   A [_netfilter_ hook](http://en.wikipedia.org/wiki/Netfilter) is used to intercept IP packets destined for the key-value store as they rise up the network stack.
   The transmit path emits packets using the `dev_queue_xmit()` kernel interface. Hence, the TX and RX paths are not specialised to any particular network driver or NIC. 
 
-* Pre-constructed socket buffer structures ([`struct sk_buff`](http://www.linuxfoundation.org/collaborate/workgroups/networking/sk_buff)
+* Pre-constructed socket buffer structures ([`struct sk_buff`](http://www.linuxfoundation.org/collaborate/workgroups/networking/sk_buff))
   are used for back-end data storage in the hash table,
   unifying the process of retrieving and sending replies on the network.
 
