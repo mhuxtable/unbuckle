@@ -1,0 +1,13 @@
+# Output from building a kernel module
+*.ko
+*.ko.cmd
+*.mod.c
+*.mod.o
+*.mod.o.cmd
+*.o
+*.o.cmd
+*.swp
+*.order
+*.symvers
+*.tmp_versions*
+bin/
