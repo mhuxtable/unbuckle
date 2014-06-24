@@ -1,0 +1,43 @@
+# Separate Makefile because kernel whinges if we redefine things like CFLAGS
+
+include $(PWD)/Unbuckle.makeopts
+
+USR-C  = src/user/unbuckle_user.o
+USR-C += src/buckets_user.o
+USR-C += src/core_user.o
+USR-C += src/user/entry_user.o
+USR-C += src/net/udpserver_user.o
+USR-C += src/prot/memcached_user.o
+USR-C += src/user/db/hashtable_user.o
+USR-C += src/user/net/udpserver_user.o
+USR-C += src/user/process_user.o
+
+CHASTE-C  = src/user/db/libchaste/data_structs/linked_list/linked_list_user.o
+CHASTE-C += src/user/db/libchaste/data_structs/linked_list/linked_list_std_user.o
+CHASTE-C += src/user/db/libchaste/data_structs/hash_map/hash_map_user.o
+CHASTE-C += src/user/db/libchaste/data_structs/array/array_std_user.o
+CHASTE-C += src/user/db/libchaste/data_structs/array/array_user.o
+CHASTE-C += src/user/db/libchaste/hash_functions/spooky/spooky_hash_user.o
+
+# Userland always uses UThash
+UB_C_OPTS += -D HASHTABLE_UTHASH=1
+
+CFLAGS = -Wall -O2 -Wno-pointer-sign $(UB_C_OPTS)
+CHFLAGS = -Isrc/ -Isrc/user/db/libchaste/
+UBFLAGS = -Isrc/
+CC = gcc -c
+LINKER = gcc -o
+
+user: $(USR-C)
+	mkdir -p bin/user
+	$(LINKER) bin/user/unbuckle $(USR-C) 
+
+$(USR-C): src/%_user.o: src/%.c
+	$(CC) $(CFLAGS) $(UBFLAGS) -o $@ $<
+$(CHASTE-C): src/user/db/libchaste/%_user.o: src/user/db/libchaste/%.c
+	$(CC) $(CFLAGS) $(CHFLAGS) -o $@ $<
+
+user-test: $(UDP-C)
+	$(CC) -Wall -Isrc/ -o bin/user/udp_tester $(UDP-C)
+
+
