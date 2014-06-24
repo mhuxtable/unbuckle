@@ -12,3 +12,4 @@ Future / Possible / Risky / Lots of work
 ----------------------------------------
 
 * Investigate [SCTP](http://www.ietf.org/rfc/rfc2960.txt) for reliability over UDP (but would ruin drop-in replacement by requiring client-side apps to be re-written)
+* NUMA support
