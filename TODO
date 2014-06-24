@@ -1,0 +1,14 @@
+TODO for Unbuckle
+=================
+
+Important
+---------
+
+* Fine-grained locking in the hash table (need to solve the problem with lots of rw semaphores using GBs of memory)
+* Pre-canned `skb` responses for generic packets, e.g. "ADDED" replies etc.
+
+
+Future / Possible / Risky / Lots of work
+----------------------------------------
+
+* Investigate [SCTP](http://www.ietf.org/rfc/rfc2960.txt) for reliability over UDP (but would ruin drop-in replacement by requiring client-side apps to be re-written)
