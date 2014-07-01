@@ -2,7 +2,9 @@
 #define UNBUCKLE_REQUEST_H
 
 #ifdef __KERNEL__
+#include <linux/if_ether.h>
 #include <linux/in.h>
+#include <linux/netdevice.h>
 #include <linux/socket.h>
 #else
 #include <arpa/inet.h>
@@ -72,6 +74,8 @@ struct request_state {
 	struct udphdr* udph;
 	__be32 saddr;
 	__be32 daddr;
+	unsigned char mac_src[ETH_ALEN];
+	struct net_device *devrcv;
 #endif
 };
 

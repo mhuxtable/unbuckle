@@ -24,21 +24,10 @@
 
 static __u16 __bitwise ip_id = 1;
 
-/* stopgap measure until this info can be supplied by the full stack implementation */
-//static unsigned char mac_them[] = {0x3c, 0x4a, 0x92, 0x77, 0xa7, 0x42};
-static unsigned char mac_them[] = {0x00, 0x1b, 0x21, 0xab, 0xe2, 0x38}; // q208
-static unsigned char mac_them2[] = {0x90, 0xe2, 0xba, 0x40, 0x8b, 0xc9};// q207
-static unsigned char mac_them3[] = {0x90, 0xe2, 0xba, 0x27, 0xfb, 0xc8};// q201
-static unsigned char mac_them4[] = {0x00, 0x1b, 0x21, 0xba, 0xa5, 0xfa};// nikola06
-static unsigned char mac_them5[] = {0x00, 0x02, 0xc9, 0x3c, 0xa4, 0x41};// freestyle
-
 #define NET_HDR_OVERHEAD \
 	sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + 2
 
 static struct net_device* dev  = NULL;
-static struct net_device* dev2 = NULL;
-static struct net_device* dev3 = NULL;
-static struct net_device* dev4 = NULL;
 
 int udpserver_init_sendbuffers(struct request_state* req)
 {
@@ -148,6 +137,20 @@ void set_up_ip_header(struct request_state* req, struct sk_buff* skb)
 	return;
 }
 
+static inline void copy_mac(unsigned char *from, unsigned char *to, size_t len)
+{
+	int i;
+
+	if (unlikely(!from || !to))
+		return;
+	if (unlikely(len > ETH_ALEN))
+		len = ETH_ALEN;
+	
+	for (i = 0; i < ETH_ALEN; i++)
+		to[i] = from[i];
+	return;
+}
+
 static inline
 int set_up_eth_header(struct request_state* req, struct sk_buff* skb)
 {
@@ -165,36 +168,11 @@ int set_up_eth_header(struct request_state* req, struct sk_buff* skb)
 	   of indirection around the header_ops struct which contains pointers to
 	   different functions for manipulating different headers depending on the
 	   device struct dev. */
-	const void *mac_send;
-	struct net_device* devsend = NULL;
-	if (req->saddr == in_aton("10.10.0.5")) //q208
-	{
-		devsend = dev;
-		mac_send = &mac_them;
-	}
-	else if (req->saddr == in_aton("10.10.3.4")) //q207
-	{
-		devsend = dev4;
-		mac_send = &mac_them2;
-	}
-	else if (req->saddr == in_aton("10.10.0.1")) //q201
-	{
-		devsend = dev;
-		mac_send = &mac_them3;
-	}
-	else if (req->saddr == in_aton("10.10.2.25")) //nikola06
-	{
-		devsend = dev3;
-		mac_send = &mac_them4;
-	}
-	else // freestyle 10.10.1.4
-	{
-		devsend = dev2;
-		mac_send = &mac_them5;
-	}
-	
+	unsigned char mac_send[ETH_ALEN];
+	struct net_device* devsend = req->devrcv;
+
+	copy_mac(req->mac_src, mac_send, ETH_ALEN);
 	err = dev_hard_header(skb, devsend, ETH_P_IP, mac_send, devsend->dev_addr, skb->len);
-	
 	if (!err)
 		return err;
 
@@ -273,7 +251,15 @@ struct sk_buff* set_up_skb(struct request_state* req)
 
 int udpserver_sendall(struct request_state* req)
 {
-	struct sk_buff* skb = req->skb_tx;
+	struct sk_buff *skb;
+
+	if (unlikely(!req)) 
+	{
+		printk("No request?\n");
+		return -1;
+	}
+
+	skb = req->skb_tx;
 
 	/* get the net_device from the udp server's sock if we haven't already set it up
 	   in global state*/
@@ -285,7 +271,7 @@ int udpserver_sendall(struct request_state* req)
 		rcu_read_lock();
 		for_each_net_rcu(ns)
 		{
-			dev = dev_get_by_name(ns, "eth4.2"); // 10.10.0.x
+			dev = dev_get_by_name(ns, "eth1.2"); // 10.10.0.x
 			if (dev)
 				break;
 		}
@@ -297,77 +283,14 @@ int udpserver_sendall(struct request_state* req)
 			return -1;
 		}
 	}
-
-	if (!dev2)
-	{
-		struct net* ns;
-		/* enumerate network namespaces until we find the one with the interface 
-		   we are interested in (eth0 here) */
-		rcu_read_lock();
-		for_each_net_rcu(ns)
-		{
-			dev2 = dev_get_by_name(ns, "eth1.2"); // 10.10.1.x
-			if (dev2)
-				break;
-		}
-		rcu_read_unlock();
-
-		if (!dev2)
-		{
-			printk("Uh oh! Cannot find the [second] network device in any class\n");
-			return -1;
-		}
-	}
-
-	if (!dev3)
-	{
-		struct net* ns;
-		/* enumerate network namespaces until we find the one with the interface 
-		   we are interested in (eth0 here) */
-		rcu_read_lock();
-		for_each_net_rcu(ns)
-		{
-			dev3 = dev_get_by_name(ns, "p801p1.2"); // 10.10.2.x
-			if (dev3)
-				break;
-		}
-		rcu_read_unlock();
-
-		if (!dev3)
-		{
-			printk("Uh oh! Cannot find the [second] network device in any class\n");
-			return -1;
-		}
-	}
-
-	if (!dev4)
-	{
-		struct net* ns;
-		/* enumerate network namespaces until we find the one with the interface 
-		   we are interested in (eth0 here) */
-		rcu_read_lock();
-		for_each_net_rcu(ns)
-		{
-			dev4 = dev_get_by_name(ns, "em1.2"); // 10.10.3.x
-			if (dev4)
-				break;
-		}
-		rcu_read_unlock();
-
-		if (!dev4)
-		{
-			printk("Uh oh! Cannot find the [second] network device in any class\n");
-			return -1;
-		}
-	}
-
+	
 	/* Set up the pointer to the UDP headers before adding them */
 	req->udpheaders = (struct memcache_udp_header*) 
 		skb_push(skb, sizeof(struct memcache_udp_header));
 	add_udp_headers(req);
-
+	
 	skb->csum = csum_partial(skb->data, skb->len, 0x0);
-
+	
 	set_up_udp_header(req, skb);
 	set_up_ip_header(req, skb);
 	set_up_eth_header(req, skb);
@@ -394,6 +317,7 @@ int do_kernel_rx_worker(struct request_state* req)
 	while (!kthread_should_stop() && ub_sys_running)
 	{
 		struct sk_buff* skb;
+		struct ethhdr  *eth;
 		struct iphdr*   iph;
 		struct udphdr*  udph;
 
@@ -427,6 +351,12 @@ int do_kernel_rx_worker(struct request_state* req)
 		
 		req->saddr = iph->saddr;
 		req->daddr = iph->daddr;
+		
+		eth = (struct ethhdr*) (((char*)iph) - sizeof(struct ethhdr));
+		copy_mac(eth->h_source, req->mac_src, ETH_ALEN);		 
+		
+		req->devrcv = skb->dev;	
+		
 		process_fastpath(req);
 		
 		/* Fallthrough to make sure the SKB gets freed. We are done with it */
