@@ -56,3 +56,10 @@ Notes
   We later hope to add support for other request types, in particular, multi-`GET`s.
 
 * __UDP only__: implementing a full custom TCP server is a sizable project which is currently relegated to a TODO.
+
+License
+====================
+
+This work is released under the GPLv2 license, in accordance with the requirements for the Linux kernel.
+More information is [available](http://www.tldp.org/HOWTO/Module-HOWTO/copyright.html). 
+See also the `COPYING` file embedded in the codebase.
