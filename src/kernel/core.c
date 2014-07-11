@@ -21,9 +21,6 @@ process_get(struct request_state* req)
 	struct ub_entry* e;
 	struct sk_buff* skb;
 	
-//	unsigned long flags;
-//	read_lock_irq(&ub_kernrwlock);
-	
 	while (!down_read_trylock(&rwlock))
 		continue;
 	e = ub_cache_find(req->key, req->len_key);
@@ -48,7 +45,6 @@ process_get(struct request_state* req)
 		return req->err;
 	}
 	up_read(&rwlock);
-//	read_unlock_irq(&ub_kernrwlock);
 
 	/* We should have found an entry, and this means we have a pointer to an skb
 	   within the ub_entry struct which we can now use to send directly on the 
@@ -63,9 +59,7 @@ process_set(struct request_state* req)
 	
 	while (!down_write_trylock(&rwlock))
 		continue;
-//	write_lock_irq(&ub_kernrwlock);
 	req->err = ub_cache_replace(req->key, req->len_key, req->data, req->len_data);
-//	write_unlock_irq(&ub_kernrwlock);
 	up_write(&rwlock);
 
 	/* TODO: this need not generate a new skb on every run, but for now it's simpler
