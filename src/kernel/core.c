@@ -1,3 +1,4 @@
+#include <db/hashtable.h>
 #include <core.h>
 #include <entry.h>
 #include <kernel/locks.h>
@@ -8,6 +9,7 @@
 
 #include <linux/rwlock.h>
 #include <linux/rwsem.h>
+#include <linux/spinlock.h>
 
 /* leave this here for now even though it's not used (stop compiler complaining) */
 DEFINE_SPINLOCK(ub_kernlock);
