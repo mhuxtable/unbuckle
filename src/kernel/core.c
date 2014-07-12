@@ -23,14 +23,12 @@ process_get(struct request_state* req)
 	struct ub_entry* e;
 	struct sk_buff* skb;
 	
-	while (!down_read_trylock(&rwlock))
-		continue;
 	e = ub_cache_find(req->key, req->len_key);
 
 	if (!e)
 	{
 		req->err = -EUBKEYNOTFOUND;
-		up_read(&rwlock);
+		ub_hashtbl_unlock_bucket(e->lock);
 		return req->err;
 	}
 
@@ -43,10 +41,10 @@ process_get(struct request_state* req)
 	if (unlikely(!skb))
 	{
 		req->err = -EUBKEYNOTFOUND;
-		up_read(&rwlock);
+		ub_hashtbl_unlock_bucket(e->lock);
 		return req->err;
 	}
-	up_read(&rwlock);
+	ub_hashtbl_unlock_bucket(e->lock);
 
 	/* We should have found an entry, and this means we have a pointer to an skb
 	   within the ub_entry struct which we can now use to send directly on the 
@@ -59,10 +57,7 @@ static int
 process_set(struct request_state* req)
 {
 	
-	while (!down_write_trylock(&rwlock))
-		continue;
 	req->err = ub_cache_replace(req->key, req->len_key, req->data, req->len_data);
-	up_write(&rwlock);
 
 	/* TODO: this need not generate a new skb on every run, but for now it's simpler
 	         to do it this way */

@@ -17,6 +17,7 @@ static void ub_cache_del(char* key, size_t len_key)
 		kfree_skb(e->skb);
 		ub_hashtbl_del(e);
 	}
+	ub_hashtbl_unlock_bucket(e->lock);
 }
 
 int ub_cache_replace(char* key, size_t len_key, char* val, size_t len_val)

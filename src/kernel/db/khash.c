@@ -86,7 +86,10 @@ int ub_hashtbl_add(struct ub_entry* e)
 
 	// Hash the key down to a form which the kernel hash table can use
 	uint64 key_hash = get_spooky64_hash(key, len_key);
-	hash_add_rcu(hashtable, node, key_hash);	
+	e->lock = get_bucket_lock_by_key(key_hash);
+	ub_hashtbl_lock_bucket(e->lock);
+	hash_add_rcu(hashtable, node, key_hash);
+	ub_hashtbl_unlock_bucket(e->lock);
 	return 0;
 }
 
@@ -94,9 +97,12 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 {
 	struct ub_entry* e;
 	uint64 key_hash;
+	bucket_lock_ot *lock;
 
 	// Hash the key down to a form which the kernel hash table can use
 	key_hash = get_spooky64_hash(key, len_key);
+	lock = get_bucket_lock_by_key(key_hash);
+	ub_hashtbl_lock_bucket(lock);
 	
 	hash_for_each_possible_rcu(hashtable, e, hlist, key_hash)
 	{
@@ -109,6 +115,10 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 			break;
 		}
 	}
+	
+	/* If we get here, the entry was not found in the bucket list,
+           so the bucket can be unlocked. */
+	ub_hashtbl_unlock_bucket(lock);
 	
 	// key not found
 	return NULL;
