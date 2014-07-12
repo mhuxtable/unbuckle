@@ -49,6 +49,9 @@ int ub_hashtbl_init(void)
 	return 0;
 }
 
+/* This isn't thread safe, but it shouldn't be called from any mainline code
+   since it's not part of the public interface, and we don't use it internally
+   anywhere except upon teardown at exit. */
 static void hashtbl_empty_all(void)
 {
 	int bkt;
