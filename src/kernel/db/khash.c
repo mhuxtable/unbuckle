@@ -9,12 +9,25 @@
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #define HASHTABLE_SIZE_BITS 24
 #define SPOOKY_SEED 0xDEADBEEFFEEDCAFELL
 
+/* Definition of opaque type bucket_lock_ot  (see entry.h)
+   (we might not always be using spinlocks).               */
+struct bucket_lock
+{
+	spinlock_t lock;
+};
+
 DECLARE_HASHTABLE(hashtable, HASHTABLE_SIZE_BITS);
+static bucket_lock_ot slocks[(1 << HASHTABLE_SIZE_BITS)];
+
+/* forward declarations */
+static int ub_hashtbl_lock_bucket(bucket_lock_ot *lock);
+static bucket_lock_ot *get_bucket_lock_by_key(u64 key_hash);
 
 /* use spooky hash to get variable length char* arrays used as keys down into a
    constant bit length which is compatible with the kernel hash table (the kernel
@@ -92,7 +105,31 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 	return NULL;
 }
 
+/* The caller must already hold the bucket lock if this is invoked
+   (which should be so because this is only currently invoked if there is a key clash
+   in the hash table -- it doesn't get invoked explicitly because we don't expose a 
+   deletion operation.) */
 void ub_hashtbl_del(struct ub_entry* e)
 {
 	hash_del_rcu(&e->hlist);
+}
+
+/******************************************************************
+ * Methods to manipulate bucket locks in the hash table go here.  *
+ ******************************************************************/
+
+static bucket_lock_ot *get_bucket_lock_by_key(u64 key_hash)
+{
+	return &slocks[hash_min(key_hash, HASH_BITS(hashtable))];
+}
+	
+static int ub_hashtbl_lock_bucket(bucket_lock_ot *lock)
+{
+	spin_lock(&lock->lock);
+	return 1;
+}
+void ub_hashtbl_unlock_bucket(bucket_lock_ot *lock)
+{
+	spin_unlock(&lock->lock);
+	return;
 }
