@@ -11,6 +11,10 @@
 #include <user/db/uthash.h>
 #endif
 
+#ifdef __KERNEL__
+typedef struct bucket_lock bucket_lock_ot;
+#endif
+
 /* item entries -- used for storing metadata and actual cached data - the idea 
    is to allocate enough memory for the entry header + the key and value to be
    stored in the cache, unless you're in the kernel, when struct ub_entry is a
@@ -29,6 +33,10 @@ struct ub_entry {
 	unsigned char* loc_key;
 	unsigned char* loc_val;
 	struct sk_buff* skb;
+	/* The lock we need to unlock after we've finished working on this
+	   entry in the data structure later. */
+	bucket_lock_ot *lock;
+	
 #endif
 };
 
