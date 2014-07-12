@@ -39,7 +39,13 @@ static inline uint64 get_spooky64_hash(char* key, int len_key)
 
 int ub_hashtbl_init(void)
 {
+	int i;
 	hash_init(hashtable);
+	for (i = 0; i < (1 << HASHTABLE_SIZE_BITS); i++)
+	{
+		slocks[i].lock = __SPIN_LOCK_UNLOCKED(slocks[i].lock);
+	}
+	printk("[Unbuckle] Hash table buckets initialised %d spinlocks.\n", i);
 	return 0;
 }
 
