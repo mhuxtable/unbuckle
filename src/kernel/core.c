@@ -27,8 +27,9 @@ process_get(struct request_state* req)
 
 	if (!e)
 	{
+		/* don't release a lock -- ub_cache_find does this automatically
+                   internally if it doesn't find anything */
 		req->err = -EUBKEYNOTFOUND;
-		ub_hashtbl_unlock_bucket(e->lock);
 		return req->err;
 	}
 
