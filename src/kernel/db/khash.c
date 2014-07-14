@@ -113,8 +113,11 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 		{
 			if (unlikely(e->lock != lock))
 			{
-				printk(KERN_ALERT "Found an item whose embedded lock was not the lock we locked for traversing the bucket.\n");
-				e->lock = lock;
+				printk(KERN_ALERT 
+					"Found an item whose embedded lock was not the lock "
+					"we locked for traversing the bucket.\n");
+				ub_hashtbl_unlock_bucket(lock);
+				return NULL;
 			}
 
 			return e;

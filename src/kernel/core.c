@@ -41,6 +41,7 @@ process_get(struct request_state* req)
 	skb = skb_clone(e->skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 	{
+		printk(KERN_ALERT "Couldn't clone the SKB.\n");
 		req->err = -EUBKEYNOTFOUND;
 		ub_hashtbl_unlock_bucket(e->lock);
 		return req->err;
