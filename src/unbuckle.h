@@ -3,6 +3,8 @@
 
 #include <linux/rwsem.h>
 
+#include <db/hashtable.h>
+
 /* but we might spin up fewer if we don't have this many CPUs */
 #define MAX_WORKERS 10
 
@@ -12,6 +14,6 @@
 extern volatile int ub_sys_running;
 extern unsigned int ub_num_rx_workers;
 
-extern struct rw_semaphore rwlock;
+extern struct rw_semaphore rwlock[(1 << HASHTABLE_SIZE_BITS)];
 
 #endif

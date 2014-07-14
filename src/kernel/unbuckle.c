@@ -73,6 +73,14 @@ static void worker_exit(void)
 	return;
 }
 
+static void init_rwsem_locks(void)
+{
+	int i;
+	for (i = 0; i < (1 << HASHTABLE_SIZE_BITS); i++)
+		init_rwsem(&rwlock[i]);
+	return;
+}
+
 static int __init unbuckle_init(void)
 {
 	printk(KERN_ALERT "Unbuckle Key-Value Store starting up...\n");	
@@ -86,7 +94,7 @@ static int __init unbuckle_init(void)
 
 	printk(KERN_ALERT "Limiting memory usage to %u MB.\n", ub_global_memory_limit);
 	
-	init_rwsem(&rwlock);	
+	init_rwsem_locks();	
 
 #ifdef STORE_LINKLIST
 	memcached_db_linklist_init();

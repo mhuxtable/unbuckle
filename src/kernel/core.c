@@ -5,30 +5,57 @@
 #include <kernel/net/udpserver_rx.h>
 #include <request.h>
 #include <uberrors.h>
+#include <db/hashtable.h>
+#include <db/spooky/spooky_hash.h>
 
 #include <linux/rwlock.h>
 #include <linux/rwsem.h>
+#include <linux/types.h>
+#include <linux/hashtable.h>
 
 /* leave this here for now even though it's not used (stop compiler complaining) */
 DEFINE_SPINLOCK(ub_kernlock);
 
 //static DEFINE_RWLOCK(ub_kernrwlock);
-struct rw_semaphore rwlock;
+struct rw_semaphore rwlock[(1 << HASHTABLE_SIZE_BITS)];
+
+#define SPOOKY_SEED 0xDEADBEEFFEEDCAFELL
+
+/* use spooky hash to get variable length char* arrays used as keys down into a
+   constant bit length which is compatible with the kernel hash table (the kernel
+   doesn't have a variable length hashing function as far as I can see */
+static inline uint64 get_spooky64_hash(char* key, int len_key)
+{
+	return spooky_Hash64(key, len_key, SPOOKY_SEED);
+}
+
+static inline struct rw_semaphore *get_rwlock_bucket(struct request_state *req)
+{
+	char *key = req->key;
+	int   len_key = req->len_key;
+
+	uint64 key_hash = get_spooky64_hash(key, len_key);
+	struct rw_semaphore *lock = &rwlock[hash_min(key_hash, HASHTABLE_SIZE_BITS)];
+	
+	return lock;
+}
 
 static int
 process_get(struct request_state* req)
 {
 	struct ub_entry* e;
-	struct sk_buff* skb;
-	
-	while (!down_read_trylock(&rwlock))
+	struct sk_buff* skb;	
+
+	struct rw_semaphore *lock = get_rwlock_bucket(req);
+
+	while (!down_read_trylock(lock))
 		continue;
 	e = ub_cache_find(req->key, req->len_key);
 
 	if (!e)
 	{
 		req->err = -EUBKEYNOTFOUND;
-		up_read(&rwlock);
+		up_read(lock);
 		return req->err;
 	}
 
@@ -41,10 +68,10 @@ process_get(struct request_state* req)
 	if (unlikely(!skb))
 	{
 		req->err = -EUBKEYNOTFOUND;
-		up_read(&rwlock);
+		up_read(lock);
 		return req->err;
 	}
-	up_read(&rwlock);
+	up_read(lock);
 
 	/* We should have found an entry, and this means we have a pointer to an skb
 	   within the ub_entry struct which we can now use to send directly on the 
@@ -56,11 +83,12 @@ process_get(struct request_state* req)
 static int
 process_set(struct request_state* req)
 {
-	
-	while (!down_write_trylock(&rwlock))
+	struct rw_semaphore *lock = get_rwlock_bucket(req);
+
+	while (!down_write_trylock(lock))
 		continue;
 	req->err = ub_cache_replace(req->key, req->len_key, req->data, req->len_data);
-	up_write(&rwlock);
+	up_write(lock);
 
 	/* TODO: this need not generate a new skb on every run, but for now it's simpler
 	         to do it this way */
