@@ -58,15 +58,15 @@ void ub_udpserver_nictxworker_init(void)
 		wake_up_process(txworker);
 	}
 
-	txworker2 = kthread_create((void*) nictxworker_run, NULL, "unbuckletx2");
+/*	txworker2 = kthread_create((void*) nictxworker_run, NULL, "unbuckletx2");
 
 	if (txworker2)
-	{
+	{*/
 		/* the first CPU core is reserved for us */
-		kthread_bind(txworker2, 1);
+		/*kthread_bind(txworker2, 1);
 		get_task_struct(txworker2);
 		wake_up_process(txworker2);
-	}
+	}*/
 	return;
 }
 void ub_udpserver_nictxworker_exit(void)

@@ -15,19 +15,8 @@
 #define HASHTABLE_SIZE_BITS 24
 #define SPOOKY_SEED 0xDEADBEEFFEEDCAFELL
 
-/* Definition of opaque type bucket_lock_ot  (see entry.h)
-   (we might not always be using spinlocks).               */
-struct bucket_lock
-{
-	spinlock_t lock;
-};
-
 DECLARE_HASHTABLE(hashtable, HASHTABLE_SIZE_BITS);
-static bucket_lock_ot slocks[(1 << HASHTABLE_SIZE_BITS)];
-
-/* forward declarations */
-static int ub_hashtbl_lock_bucket(bucket_lock_ot *lock);
-static bucket_lock_ot *get_bucket_lock_by_key(u64 key_hash);
+static spinlock_t slocks[(1 << HASHTABLE_SIZE_BITS)];
 
 /* use spooky hash to get variable length char* arrays used as keys down into a
    constant bit length which is compatible with the kernel hash table (the kernel
@@ -43,7 +32,7 @@ int ub_hashtbl_init(void)
 	hash_init(hashtable);
 	for (i = 0; i < (1 << HASHTABLE_SIZE_BITS); i++)
 	{
-		slocks[i].lock = __SPIN_LOCK_UNLOCKED(slocks[i].lock);
+		spin_lock_init(&slocks[i]);
 	}
 	printk("[Unbuckle] Hash table buckets initialised %d spinlocks.\n", i);
 	return 0;
@@ -72,7 +61,12 @@ static void hashtbl_empty_all(void)
 
 void ub_hashtbl_exit(void)
 {
+	int i;
+	for (i = 0; i < (1 << HASHTABLE_SIZE_BITS); i++)
+		ub_hashtbl_lock_bucket(&slocks[i]);
 	hashtbl_empty_all();
+	for (i = 0; i < (1 << HASHTABLE_SIZE_BITS); i++)
+		ub_hashtbl_unlock_bucket(&slocks[i]);
 	return;
 }
 
@@ -86,10 +80,7 @@ int ub_hashtbl_add(struct ub_entry* e)
 
 	// Hash the key down to a form which the kernel hash table can use
 	uint64 key_hash = get_spooky64_hash(key, len_key);
-	e->lock = get_bucket_lock_by_key(key_hash);
-	ub_hashtbl_lock_bucket(e->lock);
 	hash_add_rcu(hashtable, node, key_hash);
-	ub_hashtbl_unlock_bucket(e->lock);
 	return 0;
 }
 
@@ -97,12 +88,9 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 {
 	struct ub_entry* e;
 	uint64 key_hash;
-	bucket_lock_ot *lock;
 
 	// Hash the key down to a form which the kernel hash table can use
 	key_hash = get_spooky64_hash(key, len_key);
-	lock = get_bucket_lock_by_key(key_hash);
-	ub_hashtbl_lock_bucket(lock);
 	
 	hash_for_each_possible_rcu(hashtable, e, hlist, key_hash)
 	{
@@ -111,23 +99,10 @@ struct ub_entry* ub_hashtbl_find(char* key, size_t len_key)
 
 		if (!strncmp(key, ub_entry_loc_key(e), len_key))
 		{
-			if (unlikely(e->lock != lock))
-			{
-				printk(KERN_ALERT 
-					"Found an item whose embedded lock was not the lock "
-					"we locked for traversing the bucket.\n");
-				ub_hashtbl_unlock_bucket(lock);
-				return NULL;
-			}
-
 			return e;
 			break;
 		}
 	}
-	
-	/* If we get here, the entry was not found in the bucket list,
-           so the bucket can be unlocked. */
-	ub_hashtbl_unlock_bucket(lock);
 	
 	// key not found
 	return NULL;
@@ -146,18 +121,22 @@ void ub_hashtbl_del(struct ub_entry* e)
  * Methods to manipulate bucket locks in the hash table go here.  *
  ******************************************************************/
 
-static bucket_lock_ot *get_bucket_lock_by_key(u64 key_hash)
+spinlock_t *ub_hashtbl_get_bucket_lock(char *key, int len_key)
 {
+	u64 key_hash = get_spooky64_hash(key, len_key);
 	return &slocks[hash_min(key_hash, HASH_BITS(hashtable))];
 }
-	
-static int ub_hashtbl_lock_bucket(bucket_lock_ot *lock)
+int ub_hashtbl_lock_bucket(spinlock_t *lock)
 {
-	spin_lock(&lock->lock);
+	while (!spin_trylock(lock))
+	{
+		printk(KERN_ALERT "Couldn't acquire the lock.");
+		continue;
+	}
 	return 1;
 }
-void ub_hashtbl_unlock_bucket(bucket_lock_ot *lock)
+void ub_hashtbl_unlock_bucket(spinlock_t *lock)
 {
-	spin_unlock(&lock->lock);
+	spin_unlock(lock);
 	return;
 }

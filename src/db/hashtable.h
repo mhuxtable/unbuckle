@@ -3,6 +3,7 @@
 #define UNBUCKLE_HASHTABLE_H
 
 #ifdef __KERNEL__
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #else
 #include <stdlib.h>
@@ -21,7 +22,9 @@ void ub_hashtbl_del(struct ub_entry*);
 
 #ifdef __KERNEL__
 /* Locking specific */
-void ub_hashtbl_unlock_bucket(bucket_lock_ot *lock);
+void ub_hashtbl_unlock_bucket(spinlock_t *lock);
+int ub_hashtbl_lock_bucket(spinlock_t *lock);
+spinlock_t *ub_hashtbl_get_bucket_lock(char *key, int len_key);
 #endif
 
 #endif /* UNBUCKLE_HASHTABLE_H */ 

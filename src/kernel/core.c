@@ -23,13 +23,15 @@ process_get(struct request_state* req)
 	struct ub_entry* e;
 	struct sk_buff* skb;
 	
+	spinlock_t *bucket_lock = ub_hashtbl_get_bucket_lock(req->key, req->len_key);
+	ub_hashtbl_lock_bucket(bucket_lock);
+	
 	e = ub_cache_find(req->key, req->len_key);
 
 	if (!e)
 	{
-		/* don't release a lock -- ub_cache_find does this automatically
-                   internally if it doesn't find anything */
 		req->err = -EUBKEYNOTFOUND;
+		ub_hashtbl_unlock_bucket(bucket_lock);
 		return req->err;
 	}
 
@@ -43,10 +45,10 @@ process_get(struct request_state* req)
 	{
 		printk(KERN_ALERT "Couldn't clone the SKB.\n");
 		req->err = -EUBKEYNOTFOUND;
-		ub_hashtbl_unlock_bucket(e->lock);
+		ub_hashtbl_unlock_bucket(bucket_lock);
 		return req->err;
 	}
-	ub_hashtbl_unlock_bucket(e->lock);
+	ub_hashtbl_unlock_bucket(bucket_lock);
 
 	/* We should have found an entry, and this means we have a pointer to an skb
 	   within the ub_entry struct which we can now use to send directly on the 
@@ -58,8 +60,11 @@ process_get(struct request_state* req)
 static int
 process_set(struct request_state* req)
 {
+	spinlock_t *bucket_lock = ub_hashtbl_get_bucket_lock(req->key, req->len_key);
 	
+	ub_hashtbl_lock_bucket(bucket_lock);
 	req->err = ub_cache_replace(req->key, req->len_key, req->data, req->len_data);
+	ub_hashtbl_unlock_bucket(bucket_lock);
 
 	/* TODO: this need not generate a new skb on every run, but for now it's simpler
 	         to do it this way */

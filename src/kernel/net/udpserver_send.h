@@ -10,7 +10,7 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 
-#define MAX_CPUS	32
+#define MAX_CPUS	8
 
 extern struct sk_buff_head ub_tx_queues[MAX_CPUS];
 

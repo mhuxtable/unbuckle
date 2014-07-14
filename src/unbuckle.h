@@ -4,7 +4,7 @@
 #include <linux/rwsem.h>
 
 /* but we might spin up fewer if we don't have this many CPUs */
-#define MAX_WORKERS 10
+#define MAX_WORKERS 1
 
 
 /* used to determine whether the system is up and running and when the threads

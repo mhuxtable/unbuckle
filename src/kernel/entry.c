@@ -6,6 +6,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
@@ -16,7 +17,6 @@ static void ub_cache_del(char* key, size_t len_key)
 	{
 		kfree_skb(e->skb);
 		ub_hashtbl_del(e);
-		ub_hashtbl_unlock_bucket(e->lock);
 	}
 }
 
