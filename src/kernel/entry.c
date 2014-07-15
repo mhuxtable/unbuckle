@@ -29,7 +29,8 @@ int ub_cache_replace(char* key, size_t len_key, char* val, size_t len_val)
 	ub_cache_del(key, len_key);
 
 	// TODO: this function should receive a struct entry* not allocate memory here
-	err = ub_buckets_alloc(ub_entry_size(len_key, len_val), (void**) &e);
+//	err = ub_buckets_alloc(ub_entry_size(len_key, len_val), (void**) &e);
+	e = (struct ub_entry *) kmalloc(ub_entry_size(len_key, len_val), GFP_KERNEL);
 	
 	if (err)
 		return err;
