@@ -30,6 +30,7 @@ KDIR=/lib/modules/$(shell uname -r)/build
 
 EXTRA_CFLAGS += $(UB_C_OPTS)
 
+.PHONY: all user clean
 all: 
 	mkdir -p bin/kernel
 	mkdir -p bin/user
